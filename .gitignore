@@ -1,2 +1,6 @@
 .DS_Store
 Thumbs.db
+
+# 后端地址。仓库是公开的，真实地址只存在于本地 .env 和 GitHub secret 里。
+.env
+config.js

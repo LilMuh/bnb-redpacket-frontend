@@ -29,6 +29,17 @@ jobs:
 
       - uses: actions/configure-pages@v5
 
+      # 后端地址不在仓库里，只在 secret 里。写成 config.js 一起发布。
+      # secret 没配时这一步写个空的，页面打得开，走示例数据。
+      - name: 生成 config.js
+        env:
+          API_BASE: ${{ secrets.API_BASE }}
+        run: |
+          if [ -z "$API_BASE" ]; then
+            echo "::warning::没有配 API_BASE secret，站点会一直显示示例数据"
+          fi
+          printf 'window.APP_CONFIG = { apiBase: "%s" };\n' "$API_BASE" > config.js
+
       - uses: actions/upload-pages-artifact@v3
         with:
           # 整个仓库就是站点本身。.nojekyll 必须跟着传上去——

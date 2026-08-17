@@ -6,6 +6,9 @@
 <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="./support.js"></script>
+<!-- 后端地址不进仓库。config.js 由部署时的 GitHub secret（本地则由 .env）生成，
+     两边都被 .gitignore 挡着。文件不存在时这里 404，页面照常跑，走示例数据。 -->
+<script src="./config.js" onerror="window.APP_CONFIG = window.APP_CONFIG || {}"></script>
 </head>
 <body>
 <x-dc>
@@ -140,18 +143,19 @@
 </x-dc>
 <script type="text/x-dc" data-dc-script data-props="{&quot;apiBase&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;数据源&quot;}}">
 // 后端地址。这是个纯静态站，部署到 GitHub Pages 之后没法重新构建，
-// 所以三个来源按优先级取，改地址不用改代码、不用重新部署：
+// 所以四个来源按优先级取，改地址不用改代码：
 //
-//   1. ?api=https://...  —— 一次性覆盖，同时记进 localStorage
-//   2. localStorage       —— 上次用 ?api= 指定过的，之后直接打开就还是它
-//   3. DEFAULT_API_BASE   —— 下面这个默认值
+//   1. ?api=https://...   —— 一次性覆盖，同时记进 localStorage
+//   2. localStorage        —— 上次用 ?api= 指定过的，之后直接打开就还是它
+//   3. config.js           —— 部署时由 GitHub secret API_BASE 生成，不进仓库
+//   4. ""                  —— 都没有就是空，fetch 必然失败，页面走示例数据
 //
 // 默认值必须是 https。页面部署在 https://lilmuh.github.io 上，浏览器不允许
 // HTTPS 页面去 fetch 一个 http 地址，写成 http://127.0.0.1:8770 会被静默拦掉，
 // 页面直接退化成示例数据——看起来一切正常，数字全是假的。
 //
 // 本地开发时用 ?api=http://127.0.0.1:8770 就行：页面本身也是 http 来源，不受限制。
-const DEFAULT_API_BASE = "";
+const DEFAULT_API_BASE = (window.APP_CONFIG && window.APP_CONFIG.apiBase) || "";
 const API_BASE_STORAGE_KEY = "bnb-redpacket:apiBase";
 
 // 改状态用的令牌。只存在浏览器里，不在这个仓库的任何地方——仓库是公开的，
