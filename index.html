@@ -43,7 +43,12 @@
         <h1 style="font-size: 30px; font-weight: 600; margin: 0; line-height: 1.2;">红包领取情况</h1>
       </div>
       <div style="display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap;">
-        <div style="font-size: 12px; color: color-mix(in srgb, var(--color-text) 55%, transparent); font-feature-settings: 'tnum';">数据更新于 {{ fetchedAtText }}<br>{{ sourceText }}</div>
+        <div style="font-size: 12px; color: color-mix(in srgb, var(--color-text) 55%, transparent); font-feature-settings: 'tnum';">
+          <div>数据更新于 {{ fetchedAtText }}</div>
+          <sc-if value="{{ offline }}" hint-placeholder-val="{{ false }}">
+            <div>后端未开启，当前是示例数据</div>
+          </sc-if>
+        </div>
         <button class="btn btn-primary" onClick="{{ refresh }}" style="min-height: 44px; white-space: nowrap;">刷新</button>
       </div>
     </header>
@@ -132,7 +137,6 @@
         <button class="btn btn-primary" onClick="{{ onTokenSave }}" style="min-height: 36px; padding: var(--space-1) var(--space-3); white-space: nowrap;">保存</button>
         <span style="flex: 0 0 auto;">{{ tokenStateText }}</span>
       </div>
-      PATCH {{ patchPathText }} — 状态取值受数据库 ck_claim_attempt_claim_status 约束
     </footer>
   </div>
 
@@ -353,8 +357,9 @@ class Component extends DCLogic {
       // 混着浏览器本地时间显示，机器差几分钟就会出现「结束时间比更新时间还晚」
       fetchedAtText: data && data.server_time ? fmtTime(data.server_time)
         : this.state.fetchedAt ? fmtTime(this.state.fetchedAt) : "加载中",
-      sourceText: this.state.source === "live" ? "来源：" + this.apiBase() : "来源：示例数据（后端未连通）",
-      patchPathText: this.apiBase() + "/api/claim-attempts/{id}/status",
+      // 连上了就什么都不说：地址是部署时的秘密，写在页面上等于泄出去。
+      // 只有连不上时才提示一句，否则数字是假的却看不出来
+      offline: this.state.source !== "live",
       tokenDraft: this.state.tokenDraft,
       onTokenChange: this.onTokenChange,
       onTokenSave: this.onTokenSave,
