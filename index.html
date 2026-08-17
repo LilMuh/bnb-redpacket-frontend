@@ -123,6 +123,12 @@
     </section>
 
     <footer style="margin-top: var(--space-8); padding-top: var(--space-3); border-top: 1px solid var(--color-divider); font-size: 12px; color: color-mix(in srgb, var(--color-text) 55%, transparent); font-feature-settings: 'tnum';">
+      <div style="display: flex; align-items: center; gap: var(--space-2); flex-wrap: wrap; margin-bottom: var(--space-2);">
+        <label style="letter-spacing: 0.08em; text-transform: uppercase; flex: 0 0 auto;">写入令牌</label>
+        <input class="input" type="password" value="{{ tokenDraft }}" onChange="{{ onTokenChange }}" placeholder="只看数据不用填" style="flex: 0 1 260px; min-height: 36px; font-size: 13px;">
+        <button class="btn btn-primary" onClick="{{ onTokenSave }}" style="min-height: 36px; padding: var(--space-1) var(--space-3); white-space: nowrap;">保存</button>
+        <span style="flex: 0 0 auto;">{{ tokenStateText }}</span>
+      </div>
       PATCH {{ patchPathText }} — 状态取值受数据库 ck_claim_attempt_claim_status 约束
     </footer>
   </div>
@@ -147,6 +153,19 @@
 // 本地开发时用 ?api=http://127.0.0.1:8770 就行：页面本身也是 http 来源，不受限制。
 const DEFAULT_API_BASE = "";
 const API_BASE_STORAGE_KEY = "bnb-redpacket:apiBase";
+
+// 改状态用的令牌。只存在浏览器里，不在这个仓库的任何地方——仓库是公开的，
+// 写进代码等于没有。后端 .env 的 WEB_API_TOKEN 是它的另一半。
+const TOKEN_STORAGE_KEY = "bnb-redpacket:token";
+
+// localStorage 在部分隐私设置下直接抛异常，读写都得包一层，
+// 否则整个页面白屏
+function readStorage(key) {
+  try { return localStorage.getItem(key); } catch (error) { return null; }
+}
+function writeStorage(key, value) {
+  try { if (value) localStorage.setItem(key, value); else localStorage.removeItem(key); } catch (error) {}
+}
 
 const STATUSES = ["pending", "running", "claimed", "empty", "already_claimed", "needs_interaction", "unclaimable", "widget_not_found", "login_required", "failed", "skipped"];
 const BLOCKED = ["needs_interaction", "unclaimable", "login_required", "failed", "widget_not_found"];
@@ -186,20 +205,22 @@ function mockData() {
 }
 
 class Component extends DCLogic {
-  state = { data: null, source: "mock", fetchedAt: null, filter: "all", picks: {}, toast: null };
+  state = {
+    data: null, source: "mock", fetchedAt: null, filter: "all", picks: {}, toast: null,
+    // tokenDraft 是输入框里的字，token 是已保存生效的那个。分成两个，
+    // 是为了让「打了一半还没保存」不会影响正在用的令牌
+    token: readStorage(TOKEN_STORAGE_KEY) || "",
+    tokenDraft: readStorage(TOKEN_STORAGE_KEY) || "",
+  };
 
   componentDidMount() { this.load(); }
 
   apiBase() {
-    // localStorage 在某些隐私设置下直接抛异常，包一层免得整个页面白屏
-    const readStored = () => { try { return localStorage.getItem(API_BASE_STORAGE_KEY); } catch (error) { return null; } };
-    const remember = (value) => { try { localStorage.setItem(API_BASE_STORAGE_KEY, value); } catch (error) {} };
-
     let fromQuery = null;
     try { fromQuery = new URLSearchParams(location.search).get("api"); } catch (error) {}
-    if (fromQuery) remember(fromQuery);
+    if (fromQuery) writeStorage(API_BASE_STORAGE_KEY, fromQuery);
 
-    return (fromQuery || readStored() || this.props.apiBase || DEFAULT_API_BASE).replace(/\/$/, "");
+    return (fromQuery || readStorage(API_BASE_STORAGE_KEY) || this.props.apiBase || DEFAULT_API_BASE).replace(/\/$/, "");
   }
 
   load = async () => {
@@ -223,23 +244,59 @@ class Component extends DCLogic {
     this._toast = setTimeout(() => this.setState({ toast: null }), 2600);
   }
 
+  // 后端的错误码各自意味着完全不同的下一步动作，糊成一句「提交失败」
+  // 等于让人对着屏幕猜：该填令牌？该等一会儿？还是这条根本不存在？
+  failureText(status) {
+    if (status === 401) return "令牌不对，请在页面底部重新填写";
+    if (status === 503) return "后端没开写入（WEB_API_TOKEN 未配置）";
+    if (status === 409) return "worker 正在处理这一条，稍后再试";
+    if (status === 404) return "这条记录不存在，刷新一下";
+    if (status === 400) return "状态值不合法";
+    return "提交失败（HTTP " + status + "）";
+  }
+
   patchStatus = async (row, to) => {
-    let ok = true;
-    if (this.state.source === "live") {
-      try {
-        const response = await fetch(this.apiBase() + "/api/claim-attempts/" + row.id + "/status", {
-          method: "PATCH", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ claim_status: to, changed_by: "manual" }),
-        });
-        ok = response.ok;
-      } catch (error) { ok = false; }
+    if (this.state.source !== "live") {
+      this.flash("这是示例数据，改不了");
+      return;
     }
+
+    let failure = null;
+    try {
+      const headers = { "Content-Type": "application/json" };
+      if (this.state.token) headers["Authorization"] = "Bearer " + this.state.token;
+
+      const response = await fetch(this.apiBase() + "/api/claim-attempts/" + row.id + "/status", {
+        method: "PATCH", headers,
+        body: JSON.stringify({ claim_status: to, changed_by: "manual" }),
+      });
+      if (!response.ok) failure = this.failureText(response.status);
+    } catch (error) {
+      failure = "连不上后端";
+    }
+
+    // 失败时不动本地数据。之前不管成没成都改，界面会显示成已经改好了，
+    // 下次刷新又变回去——最容易让人以为是后端在丢数据
+    if (failure) {
+      this.flash(failure);
+      return;
+    }
+
     const data = this.state.data;
     const attempts = data.attempts.map((item) => (item.id === row.id ? { ...item, claim_status: to } : item));
     const picks = { ...this.state.picks };
     delete picks[row.id];
     this.setState({ data: { ...data, attempts }, picks });
-    this.flash(ok ? row.binance_post_id + " 已改为 " + to : "提交失败，请检查后端");
+    this.flash(row.binance_post_id + " 已改为 " + to);
+  };
+
+  onTokenChange = (event) => { this.setState({ tokenDraft: event.target.value }); };
+
+  onTokenSave = () => {
+    const token = (this.state.tokenDraft || "").trim();
+    writeStorage(TOKEN_STORAGE_KEY, token);
+    this.setState({ token, tokenDraft: token });
+    this.flash(token ? "令牌已保存到这个浏览器" : "令牌已清除");
   };
 
   renderVals() {
@@ -294,6 +351,10 @@ class Component extends DCLogic {
         : this.state.fetchedAt ? fmtTime(this.state.fetchedAt) : "加载中",
       sourceText: this.state.source === "live" ? "来源：" + this.apiBase() : "来源：示例数据（后端未连通）",
       patchPathText: this.apiBase() + "/api/claim-attempts/{id}/status",
+      tokenDraft: this.state.tokenDraft,
+      onTokenChange: this.onTokenChange,
+      onTokenSave: this.onTokenSave,
+      tokenStateText: this.state.token ? "已保存，可以改状态" : "未填写，只能看",
       statusOptions: STATUSES,
       filter,
       onFilter: (event) => this.setState({ filter: event.target.value }),
