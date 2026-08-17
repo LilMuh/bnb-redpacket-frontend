@@ -1,0 +1,40 @@
+# 纯静态站，没有构建步骤：把仓库原样发布到 GitHub Pages。
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # 允许在 Actions 页面手动重跑，不用为了重新部署造一个空提交
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 同时只跑一个部署。连着推两次时取消不了排队中的那个会让后推的先上线，
+# 结果是旧版本覆盖新版本。
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          # 整个仓库就是站点本身。.nojekyll 必须跟着传上去——
+          # 少了它 Jekyll 会把 _ds/ 这种下划线开头的目录整个吃掉，
+          # 页面能打开但没有任何样式。
+          path: .
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
