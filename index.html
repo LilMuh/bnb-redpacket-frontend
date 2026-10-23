@@ -53,6 +53,13 @@
       </div>
     </header>
 
+    <sc-for list="{{ staleSources }}" as="source" hint-placeholder-count="0">
+      <div role="alert" style="margin-top: var(--space-4); border: 1px solid #e3b3ae; border-left: 4px solid #b3261e; background: #fbeceb; border-radius: var(--radius-md); padding: var(--space-3) var(--space-4);">
+        <div style="font-weight: 600; color: #b3261e;">{{ source.title }}</div>
+        <div style="margin-top: var(--space-1); font-size: 13px; color: color-mix(in srgb, var(--color-text) 75%, transparent); font-feature-settings: 'tnum';">{{ source.detail }}</div>
+      </div>
+    </sc-for>
+
     <section style="margin-top: var(--space-6); display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1px; background: var(--color-divider); border: 1px solid var(--color-divider); border-radius: var(--radius-md); overflow: hidden;">
       <div style="background: var(--color-neutral-100); padding: var(--space-4);">
         <div style="font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 55%, transparent);">领取成功</div>
@@ -177,6 +184,7 @@ function writeStorage(key, value) {
 
 const STATUSES = ["pending", "running", "claimed", "empty", "already_claimed", "needs_interaction", "unclaimable", "widget_not_found", "login_required", "failed", "skipped"];
 const BLOCKED = ["needs_interaction", "unclaimable", "login_required", "failed", "widget_not_found"];
+const SOURCE_LABELS = { "square-author": "盯作者", "bnb.build": "bnb.build" };
 
 function mockData() {
   const now = Date.now();
@@ -335,6 +343,19 @@ class Component extends DCLogic {
       onConfirm: () => { const to = this.state.picks[row.id]; if (to) this.patchStatus(row, to); },
     }));
 
+    // 只在出事时出现：哪条消息源太久没进新帖（多久算太久由后端定，见 stale）。
+    // 2026-10-22 盯作者的接口被换掉，安静地停了 36 小时，页面上一点看不出来
+    const serverNow = data && data.server_time ? new Date(data.server_time).getTime() : Date.now();
+    const staleSources = ((data && data.sources) || []).filter((source) => source.stale).map((source) => {
+      const label = SOURCE_LABELS[source.source_name] || source.source_name;
+      const hours = Math.floor((serverNow - new Date(source.last_discovered_at).getTime()) / 3600000);
+      return {
+        // 英文名后面空一格，中文名直接接「已经」
+        title: label + (/[A-Za-z0-9.]$/.test(label) ? " " : "") + "已经 " + hours + " 小时没拿到新帖子",
+        detail: "最后一次拿到：" + fmtTime(source.last_discovered_at) + " · 可能是币安改了接口，也可能是进程没在跑",
+      };
+    });
+
     const filter = this.state.filter;
     const filtered = filter === "all" ? attempts : attempts.filter((row) => row.claim_status === filter);
     const detailRows = filtered.slice().sort((a, b) =>
@@ -349,7 +370,7 @@ class Component extends DCLogic {
       successRateText: ((counts.claimed || 0) * 100 / total).toFixed(1) + "%",
       blockedCountText: String(blocked.length),
       totalCountText: String(attempts.length),
-      blockedRows, detailRows,
+      blockedRows, detailRows, staleSources,
       blockedEmpty: blockedRows.length === 0,
       blockedListCountText: blocked.length + " 条",
       detailCountText: "显示 " + detailRows.length + " / " + filtered.length + " 条",
