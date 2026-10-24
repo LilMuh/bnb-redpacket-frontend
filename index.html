@@ -61,33 +61,32 @@
     </sc-for>
 
     <section style="margin-top: var(--space-6); display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1px; background: var(--color-divider); border: 1px solid var(--color-divider); border-radius: var(--radius-md); overflow: hidden;">
-      <div style="background: var(--color-neutral-100); padding: var(--space-4);">
-        <div style="font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 55%, transparent);">领取成功</div>
-        <div style="font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 30px; font-weight: 500; font-variant-numeric: tabular-nums; margin-top: var(--space-2);">{{ claimedText }}</div>
-        <div style="font-size: 12px; color: color-mix(in srgb, var(--color-text) 55%, transparent); font-feature-settings: 'tnum'; margin-top: var(--space-1);">成功率 {{ successRateText }}</div>
-      </div>
-      <div style="background: var(--color-neutral-100); padding: var(--space-4);">
-        <div style="font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 55%, transparent);">待人工处理</div>
-        <div style="font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 30px; font-weight: 500; font-variant-numeric: tabular-nums; margin-top: var(--space-2);">{{ blockedCountText }}</div>
-        <div style="font-size: 12px; color: color-mix(in srgb, var(--color-text) 55%, transparent); font-feature-settings: 'tnum'; margin-top: var(--space-1);">共 {{ totalCountText }} 条记录</div>
-      </div>
+      <sc-for list="{{ groupTiles }}" as="tile" hint-placeholder-count="4">
+        <div style="background: var(--color-neutral-100); padding: var(--space-4);">
+          <div style="font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 55%, transparent);">{{ tile.label }}</div>
+          <div class="num" style="font-size: 30px; font-weight: 500; margin-top: var(--space-2);">{{ tile.count }}</div>
+          <div style="font-size: 12px; color: color-mix(in srgb, var(--color-text) 55%, transparent); font-feature-settings: 'tnum'; margin-top: var(--space-1);">{{ tile.note }}</div>
+        </div>
+      </sc-for>
     </section>
 
     <section style="margin-top: var(--space-8);">
       <div style="display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; border-bottom: 1px solid var(--color-text); padding-bottom: var(--space-2);">
-        <h2 style="font-size: 20px; font-weight: 600; margin: 0;">领不了的红包</h2>
+        <h2 style="font-size: 20px; font-weight: 600; margin: 0;">要人工处理的红包</h2>
         <div style="font-size: 13px; color: color-mix(in srgb, var(--color-text) 55%, transparent); font-feature-settings: 'tnum';">{{ blockedListCountText }}</div>
       </div>
       <sc-for list="{{ blockedRows }}" as="row" hint-placeholder-count="6">
-        <div style="display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; padding: var(--space-2) 0; border-bottom: 1px solid var(--color-divider); min-height: 48px;">
+        <div style="display: flex; align-items: center; gap: var(--space-1) var(--space-3); flex-wrap: wrap; padding: var(--space-2) 0; border-bottom: 1px solid var(--color-divider); min-height: 48px;">
           <span class="tag tag-outline" style="font-feature-settings: 'tnum'; font-size: 12px; flex: 0 0 auto;">{{ row.status }}</span>
           <a href="{{ row.url }}" target="_blank" rel="noopener" style="flex: 1 1 220px; min-width: 0; font-size: 13px; font-feature-settings: 'tnum'; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ row.urlText }}</a>
           <span style="font-size: 12px; color: color-mix(in srgb, var(--color-text) 50%, transparent); font-feature-settings: 'tnum'; flex: 0 0 auto;">{{ row.metaText }}</span>
+          <!-- 程序为什么没领到。人据此决定改成哪一种：order 让它排到这一行的最后，单独占一行 -->
+          <div title="{{ row.detail }}" style="order: 10; flex: 1 1 100%; min-width: 0; font-size: 12px; color: color-mix(in srgb, var(--color-text) 60%, transparent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{{ row.detail }}</div>
           <span style="display: flex; gap: var(--space-2); align-items: center; flex: 0 0 auto; margin-left: auto;">
             <select class="input" onChange="{{ row.onPick }}" value="{{ row.pick }}" style="min-height: 40px; min-width: 152px; font-size: 13px; padding: 4px var(--space-2);">
               <option value="">改为…</option>
-              <sc-for list="{{ statusOptions }}" as="opt" hint-placeholder-count="4">
-                <option value="{{ opt }}">{{ opt }}</option>
+              <sc-for list="{{ actionOptions }}" as="opt" hint-placeholder-count="3">
+                <option value="{{ opt.value }}">{{ opt.label }}</option>
               </sc-for>
             </select>
             <button class="btn btn-primary" onClick="{{ row.onConfirm }}" disabled="{{ row.confirmDisabled }}" style="min-height: 40px; padding: var(--space-1) var(--space-3); white-space: nowrap;">确认</button>
@@ -95,7 +94,7 @@
         </div>
       </sc-for>
       <sc-if value="{{ blockedEmpty }}" hint-placeholder-val="{{ false }}">
-        <div style="padding: var(--space-6); text-align: center; color: color-mix(in srgb, var(--color-text) 55%, transparent); font-size: 14px;">没有卡住的红包。</div>
+        <div style="padding: var(--space-6); text-align: center; color: color-mix(in srgb, var(--color-text) 55%, transparent); font-size: 14px;">没有要人工处理的红包。</div>
       </sc-if>
     </section>
 
@@ -103,11 +102,11 @@
       <div style="display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-3); flex-wrap: wrap; border-bottom: 1px solid var(--color-text); padding-bottom: var(--space-2);">
         <h2 style="font-size: 20px; font-weight: 600; margin: 0;">全部记录</h2>
         <div style="display: flex; gap: var(--space-2); align-items: center;">
-          <label style="font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 55%, transparent);">状态</label>
+          <label style="font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: color-mix(in srgb, var(--color-text) 55%, transparent);">分组</label>
           <select class="input" onChange="{{ onFilter }}" value="{{ filter }}" style="min-height: 40px; min-width: 170px; font-size: 13px; padding: 4px var(--space-2);">
             <option value="all">全部</option>
-            <sc-for list="{{ statusOptions }}" as="opt" hint-placeholder-count="4">
-              <option value="{{ opt }}">{{ opt }}</option>
+            <sc-for list="{{ groupOptions }}" as="opt" hint-placeholder-count="4">
+              <option value="{{ opt.value }}">{{ opt.label }}</option>
             </sc-for>
           </select>
         </div>
@@ -182,9 +181,32 @@ function writeStorage(key, value) {
   try { if (value) localStorage.setItem(key, value); else localStorage.removeItem(key); } catch (error) {}
 }
 
-const STATUSES = ["pending", "running", "claimed", "empty", "already_claimed", "needs_interaction", "unclaimable", "widget_not_found", "login_required", "failed", "skipped"];
-const BLOCKED = ["needs_interaction", "unclaimable", "login_required", "failed", "widget_not_found"];
+// 后端按「人要不要管」把每条记录分进四组，写在 claim_status_group 里（规则见后端的
+// claim_status.py）。页面只认这四组，不再自己维护一份状态表。人只需要看「人工」这一组。
+const GROUPS = [
+  { value: "manual", label: "人工", note: "程序领不了，要人看一下" },
+  { value: "claimed", label: "领到", note: "" },
+  { value: "given_up", label: "不再尝试", note: "已过期、已领完，或没有答案" },
+  { value: "in_progress", label: "处理中", note: "程序还在处理，不用管" },
+];
+const GROUP_LABELS = Object.fromEntries(GROUPS.map((group) => [group.value, group.label]));
+
+// 人工处理时的三个去向。value 是写回后端的 claim_status
+const ACTIONS = [
+  { value: "claimed", label: "领到" },
+  { value: "skipped", label: "不再尝试" },
+  { value: "pending", label: "重新排队" },
+];
+
 const SOURCE_LABELS = { "square-author": "盯作者", "bnb.build": "bnb.build" };
+
+// 只给示例数据用：后端没连上时，示例记录也要有分组和中文名
+const MOCK_GROUP_AND_LABEL = {
+  claimed: ["claimed", "已领取"], already_claimed: ["claimed", "重复领取"],
+  empty: ["given_up", "已领完"], widget_not_found: ["given_up", "无红包组件"], skipped: ["given_up", "放弃"],
+  needs_interaction: ["manual", "待人工"], unclaimable: ["manual", "领不到"], failed: ["manual", "异常失败"],
+  pending: ["in_progress", "待处理"], running: ["in_progress", "处理中"], awaiting_answer: ["in_progress", "等答案"],
+};
 
 function mockData() {
   const now = Date.now();
@@ -193,7 +215,7 @@ function mockData() {
     ["claimed", 118, "USDT", 0.42], ["claimed", 41, "SOL", 0.0031], ["claimed", 22, "BNB", 0.0009],
     ["claimed", 19, "USDC", 0.55], ["claimed", 14, "BTTC", 4200], ["claimed", 9, "PEPE", 18000],
     ["needs_interaction", 9, null, 0], ["unclaimable", 7, null, 0], ["empty", 44, null, 0],
-    ["already_claimed", 12, null, 0], ["widget_not_found", 4, null, 0], ["login_required", 2, null, 0],
+    ["already_claimed", 12, null, 0], ["widget_not_found", 4, null, 0], ["awaiting_answer", 2, null, 0],
     ["failed", 3, null, 0], ["skipped", 15, null, 0], ["pending", 27, null, 0], ["running", 2, null, 0],
   ];
   const rows = [];
@@ -208,6 +230,9 @@ function mockData() {
         id: id++,
         binance_post_id: String(355662000000000 + Math.floor(rnd() * 999999999)),
         claim_status: status,
+        claim_status_group: MOCK_GROUP_AND_LABEL[status][0],
+        claim_status_label: MOCK_GROUP_AND_LABEL[status][1],
+        status_detail: currency ? null : "示例数据",
         claimed_amount: currency ? +(unit * (0.4 + rnd() * 1.8)).toPrecision(4) : null,
         claimed_currency: currency,
         attempt_count: status === "unclaimable" ? 2 : 1 + Math.floor(rnd() * 2),
@@ -278,6 +303,7 @@ class Component extends DCLogic {
     }
 
     let failure = null;
+    let updated = null;
     try {
       const headers = { "Content-Type": "application/json" };
       if (this.state.token) headers["Authorization"] = "Bearer " + this.state.token;
@@ -287,6 +313,9 @@ class Component extends DCLogic {
         body: JSON.stringify({ claim_status: to, changed_by: "manual" }),
       });
       if (!response.ok) failure = this.failureText(response.status);
+      // 后端返回改完的整行，里面有新的分组和中文名。用它替换本地这一行，
+      // 不在页面上自己推算新分组。返回的内容解析不了时，写入已经成功，只更新状态
+      else updated = await response.json().catch(() => ({ claim_status: to }));
     } catch (error) {
       failure = "连不上后端";
     }
@@ -299,11 +328,12 @@ class Component extends DCLogic {
     }
 
     const data = this.state.data;
-    const attempts = data.attempts.map((item) => (item.id === row.id ? { ...item, claim_status: to } : item));
+    const attempts = data.attempts.map((item) => (item.id === row.id ? { ...item, ...updated } : item));
     const picks = { ...this.state.picks };
     delete picks[row.id];
     this.setState({ data: { ...data, attempts }, picks });
-    this.flash(row.binance_post_id + " 已改为 " + to);
+    const action = ACTIONS.find((item) => item.value === to);
+    this.flash(row.binance_post_id + " 已改为「" + (action ? action.label : to) + "」");
   };
 
   onTokenChange = (event) => { this.setState({ tokenDraft: event.target.value }); };
@@ -325,18 +355,32 @@ class Component extends DCLogic {
       return p(d.getMonth() + 1) + "-" + p(d.getDate()) + " " + p(d.getHours()) + ":" + p(d.getMinutes());
     };
 
-    const counts = {};
-    for (const row of attempts) counts[row.claim_status] = (counts[row.claim_status] || 0) + 1;
-    const total = attempts.length || 1;
+    // 后端没给分组时（还没升级的旧后端），归到「处理中」：宁可多一组看着不对，
+    // 也不要把记录错放进「人工」或「不再尝试」
+    const groupOf = (row) => row.claim_status_group || "in_progress";
+    const labelOf = (row) => row.claim_status_label || row.claim_status;
+    const byRecency = (a, b) => new Date(b.finished_at || b.started_at) - new Date(a.finished_at || a.started_at);
 
-    const blocked = attempts.filter((row) => BLOCKED.includes(row.claim_status))
-      .sort((a, b) => BLOCKED.indexOf(a.claim_status) - BLOCKED.indexOf(b.claim_status));
+    const counts = {};
+    for (const row of attempts) counts[groupOf(row)] = (counts[groupOf(row)] || 0) + 1;
+    const total = attempts.length || 1;
+    const groupTiles = GROUPS.map((group) => ({
+      label: group.label,
+      count: String(counts[group.value] || 0),
+      note: group.value === "claimed"
+        ? "成功率 " + ((counts.claimed || 0) * 100 / total).toFixed(1) + "% · 共 " + attempts.length + " 条"
+        : group.note,
+    }));
+
+    // 只列「人工」这一组。最近结束的排在前面：越新的红包越可能还领得到
+    const blocked = attempts.filter((row) => groupOf(row) === "manual").sort(byRecency);
     const picks = this.state.picks;
     const blockedRows = blocked.slice(0, 40).map((row) => ({
-      status: row.claim_status,
+      status: labelOf(row),
       url: row.binance_url,
       urlText: row.binance_url ? row.binance_url.replace(/^https?:\/\//, "") : "—",
       metaText: fmtTime(row.finished_at || row.started_at),
+      detail: row.status_detail || "",
       pick: picks[row.id] || "",
       confirmDisabled: !picks[row.id],
       onPick: (event) => this.setState({ picks: { ...this.state.picks, [row.id]: event.target.value } }),
@@ -357,20 +401,18 @@ class Component extends DCLogic {
     });
 
     const filter = this.state.filter;
-    const filtered = filter === "all" ? attempts : attempts.filter((row) => row.claim_status === filter);
-    const detailRows = filtered.slice().sort((a, b) =>
-      new Date(b.finished_at || b.started_at) - new Date(a.finished_at || a.started_at)).slice(0, 60).map((row) => ({
-      postId: row.binance_post_id, url: row.binance_url, status: row.claim_status,
+    const filtered = filter === "all" ? attempts : attempts.filter((row) => groupOf(row) === filter);
+    const detailRows = filtered.slice().sort(byRecency).slice(0, 60).map((row) => ({
+      postId: row.binance_post_id, url: row.binance_url,
+      // 分组名和状态名一样时（处理中 · 处理中）只显示一个
+      status: GROUP_LABELS[groupOf(row)] === labelOf(row)
+        ? labelOf(row) : GROUP_LABELS[groupOf(row)] + " · " + labelOf(row),
       amount: row.claimed_amount == null ? "—" : row.claimed_amount + " " + (row.claimed_currency || ""),
       finished: fmtTime(row.finished_at),
     }));
 
     return {
-      claimedText: String(counts.claimed || 0),
-      successRateText: ((counts.claimed || 0) * 100 / total).toFixed(1) + "%",
-      blockedCountText: String(blocked.length),
-      totalCountText: String(attempts.length),
-      blockedRows, detailRows, staleSources,
+      groupTiles, blockedRows, detailRows, staleSources,
       blockedEmpty: blockedRows.length === 0,
       blockedListCountText: blocked.length + " 条",
       detailCountText: "显示 " + detailRows.length + " / " + filtered.length + " 条",
@@ -385,7 +427,8 @@ class Component extends DCLogic {
       onTokenChange: this.onTokenChange,
       onTokenSave: this.onTokenSave,
       tokenStateText: this.state.token ? "已保存，可以改状态" : "未填写，只能看",
-      statusOptions: STATUSES,
+      actionOptions: ACTIONS,
+      groupOptions: GROUPS,
       filter,
       onFilter: (event) => this.setState({ filter: event.target.value }),
       refresh: this.refresh,
